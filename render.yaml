@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: drawafish
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheck:
+      path: /health
+      interval: 30
+      timeout: 10
+      gracePeriod: 60
