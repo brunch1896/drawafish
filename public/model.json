@@ -1,4 +1,5 @@
 {
+  "format": "layers_model",
   "modelTopology": {
     "class_name": "Sequential",
     "config": {
@@ -18,6 +19,7 @@
             "dilation_rate": [1, 1],
             "activation": "relu",
             "use_bias": true,
+            "input_shape": [64, 64, 3],
             "kernel_initializer": {
               "class_name": "GlorotUniform",
               "config": {"seed": null}

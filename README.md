@@ -25,6 +25,7 @@
 - Socket.io
 
 ### 部署
+- Netlify (推荐)
 - Docker
 - NPM
 
@@ -50,6 +51,39 @@ npm run dev
 
 4. 打开浏览器访问 `http://localhost:3000`
 
+### Netlify部署
+
+1. **将代码推送到GitHub**
+```bash
+# 导航到项目目录
+cd /path/to/fishGame
+
+# 初始化Git仓库（如果尚未初始化）
+git init
+
+# 添加所有文件
+git add .
+
+# 提交更改
+git commit -m "初始化项目"
+
+# 添加远程仓库
+git remote add origin https://github.com/your-username/drawafish.git
+
+# 推送到GitHub
+git push -u origin main
+```
+
+2. **在Netlify上部署**
+- 登录到Netlify账号
+- 点击 "New site from Git"
+- 选择GitHub并授权
+- 选择你的drawafish仓库
+- 配置部署设置：
+  - 构建命令: 留空
+  - 发布目录: public
+- 点击 "Deploy site"
+
 ### Docker部署
 
 1. 构建镜像
@@ -70,10 +104,16 @@ drawafish/
 │  ├─ index.html          # 主页面
 │  ├─ sketch.js           # 绘画功能
 │  ├─ fish.js             # 鱼缸动画
-│  └─ model.json          # AI模型配置
-├─ server.js              # 后端服务器
+│  ├─ model.json          # AI模型配置
+│  └─ weights.bin         # 模型权重文件
+├─ netlify/               # Netlify配置
+│  └─ functions/          # Netlify函数
+│     └─ server.js        # 后端API逻辑
+├─ server.js              # 本地开发服务器
 ├─ package.json           # 项目配置
-└─ Dockerfile             # Docker配置
+├─ netlify.toml           # Netlify配置文件
+├─ Dockerfile             # Docker配置
+└─ README.md              # 项目说明
 ```
 
 ## API接口
@@ -105,6 +145,24 @@ drawafish/
 - 支持并发用户 1k+
 - 内存占用 <50 MB
 - 响应时间 <100ms
+
+## 常见问题
+
+### 模型加载失败
+如果遇到模型加载失败的问题，可能的原因：
+- `model.json` 或 `weights.bin` 文件不存在或路径错误
+- 模型文件格式不正确
+
+### 404错误
+如果遇到API请求404错误，可能的原因：
+- Netlify函数没有正确部署
+- API路径配置错误
+
+## 更新日志
+- 添加了详细错误日志以排查部署问题
+- 修复了TensorFlow.js模型加载问题
+- 移除了Socket.io依赖，改用轮询机制
+- 添加了Netlify部署配置
 
 ## 开发计划
 

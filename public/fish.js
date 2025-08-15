@@ -7,11 +7,15 @@ class FishTank {
         this.offsetX = 0;
         this.animationId = null;
         this.hoveredFish = null;
+        this.lastFishId = null;
+        this.pollingInterval = null;
+        this.pollingRate = 5000; // 5 seconds
         
         this.initializeCanvas();
         this.setupEventListeners();
-        this.connectToServer();
+        this.loadExistingFishes();
         this.startAnimation();
+        this.startPolling();
     }
 
     initializeCanvas() {
@@ -34,41 +38,75 @@ class FishTank {
         });
     }
 
-    connectToServer() {
-        // Connect to Socket.io server
-        this.socket = io();
-        
-        this.socket.on('connect', () => {
-            console.log('Connected to server');
-            this.loadExistingFishes();
-        });
-
-        this.socket.on('newFish', (fishData) => {
-            this.addFish(fishData);
-        });
-
-        this.socket.on('disconnect', () => {
-            console.log('Disconnected from server');
-            this.enableOfflineMode();
-        });
-    }
-
     async loadExistingFishes() {
         try {
+            console.log('[FISH TANK] 加载现有鱼类数据...');
             const response = await fetch('/fishes');
+            if (!response.ok) {
+                throw new Error(`HTTP错误 ${response.status} ${response.statusText}`);
+            }
             const fishes = await response.json();
             
             fishes.forEach(fishData => {
                 this.addFish(fishData);
+                // Track the latest fish ID
+                if (!this.lastFishId || fishData.id > this.lastFishId) {
+                    this.lastFishId = fishData.id;
+                }
             });
+            console.log('[FISH TANK] 成功加载', fishes.length, '条鱼');
         } catch (error) {
-            console.error('Error loading existing fishes:', error);
+            console.error('[FISH TANK] 加载鱼类数据出错:', {
+                timestamp: new Date().toISOString(),
+                error: error.message,
+                stack: error.stack
+            });
             this.enableOfflineMode();
+        }
+    }
+
+    startPolling() {
+        console.log('[FISH TANK] 开始轮询新鱼类数据，间隔:', this.pollingRate, 'ms');
+        this.pollingInterval = setInterval(async () => {
+            await this.fetchNewFishes();
+        }, this.pollingRate);
+    }
+
+    async fetchNewFishes() {
+        try {
+            let url = '/fishes';
+            if (this.lastFishId) {
+                url += `?since=${this.lastFishId}`;
+            }
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP错误 ${response.status} ${response.statusText}`);
+            }
+            const newFishes = await response.json();
+            
+            if (newFishes.length > 0) {
+                console.log('[FISH TANK] 发现', newFishes.length, '条新鱼');
+                newFishes.forEach(fishData => {
+                    this.addFish(fishData);
+                    // Update the latest fish ID
+                    if (fishData.id > this.lastFishId) {
+                        this.lastFishId = fishData.id;
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('[FISH TANK] 轮询新鱼类数据出错:', {
+                timestamp: new Date().toISOString(),
+                error: error.message,
+                stack: error.stack
+            });
         }
     }
 
     enableOfflineMode() {
         // Add some demo fishes for offline mode
+        console.log('[FISH TANK] 启用离线模式');
         const demoFishes = [
             { nickname: '离线鱼1', imageBase64: this.createDemoFishImage(), prob: 0.8 },
             { nickname: '离线鱼2', imageBase64: this.createDemoFishImage(), prob: 0.9 }

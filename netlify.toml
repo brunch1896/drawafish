@@ -1,0 +1,46 @@
+[build]
+  command = "npm install"
+  publish = "public"
+
+[dev]
+  command = "npm run dev"
+  port = 3000
+
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+
+[functions]
+  node_bundler = "esbuild"
+
+[build.environment]
+  NODE_VERSION = "16"
+
+# Netlify redirects to handle SPA and API routes
+[[redirects]]
+  from = "/fish"
+  to = "/.netlify/functions/server"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/fishes"
+  to = "/.netlify/functions/server"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/fish/:fishId/report"
+  to = "/.netlify/functions/server"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/socket.io/*"
+  to = "/.netlify/functions/server/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

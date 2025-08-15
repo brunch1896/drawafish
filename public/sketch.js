@@ -243,6 +243,11 @@ class DrawingApp {
     async loadModel() {
         try {
             console.log('[AI] 开始加载鱼类检测模型...');
+            // 首先检查weights.bin文件是否存在
+            const weightsResponse = await fetch('/weights.bin', { method: 'HEAD' });
+            if (!weightsResponse.ok) {
+                throw new Error('weights.bin 文件不存在');
+            }
             this.model = await tf.loadLayersModel('/model.json');
             this.modelLoaded = true;
             console.log('[AI] 鱼类检测模型加载成功');
@@ -254,7 +259,12 @@ class DrawingApp {
                 modelPath: '/model.json'
             });
             this.modelLoaded = false;
-            showToast('AI模型加载失败，将使用备用检测方法');
+            // 根据错误类型显示不同的提示
+            if (error.message.includes('weights.bin')) {
+                showToast('AI模型权重文件缺失，将使用备用检测方法');
+            } else {
+                showToast('AI模型加载失败，将使用备用检测方法');
+            }
         }
     }
 
@@ -357,6 +367,7 @@ class DrawingApp {
     async submitFish(nickname, imageData, probability) {
         try {
             console.log('[SERVER] 开始提交鱼类数据...');
+            // 使用fetch API提交数据，不再依赖Socket.io
             const response = await fetch('/fish', {
                 method: 'POST',
                 headers: {
