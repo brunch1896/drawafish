@@ -172,10 +172,12 @@ class DrawingApp {
 
     async completeDrawing() {
         const nickname = document.getElementById('nicknameInput').value.trim() || '匿名用户';
-        
+        console.log('[DRAWING] 用户完成绘画，昵称:', nickname);
+
         // Export as 64x64 PNG
         const imageData = this.exportTo64x64();
-        
+        console.log('[DRAWING] 图像导出完成，大小:', imageData.length);
+
         // Show loading state
         const completeBtn = document.getElementById('completeBtn');
         const originalText = completeBtn.textContent;
@@ -187,30 +189,41 @@ class DrawingApp {
 
         try {
             // Fish detection
+            console.log('[DRAWING] 开始鱼类检测...');
             const isFishProb = await this.detectFish(imageData);
-            
+            console.log('[DRAWING] 检测结果:', isFishProb);
+
             // Update AI feedback with results
             this.updateAIFeedback(isFishProb);
-            
-            // Check if probability meets threshold (now 0.01 as per server change)
+
+            // Check if probability meets threshold
             if (isFishProb >= 0.01) {
                 // Submit to server
+                console.log('[DRAWING] 鱼类概率达标，开始提交到服务器...');
                 await this.submitFish(nickname, imageData, isFishProb);
-                
+                console.log('[DRAWING] 提交成功');
+
                 // Clear canvas for next drawing
                 this.clearCanvas();
-                
+
                 showToast('太棒了！你的鱼已进入鱼缸！');
             } else {
+                console.log('[DRAWING] 鱼类概率不达标:', isFishProb);
                 showToast('这不太像鱼哦，再画一次');
             }
         } catch (error) {
-            console.error('Error completing drawing:', error);
-            showToast('提交失败，请重试');
+            console.error('[DRAWING] 完成绘画过程出错:', {
+                timestamp: new Date().toISOString(),
+                error: error.message,
+                stack: error.stack,
+                nickname: nickname
+            });
+            showToast(`提交失败: ${error.message || '未知错误'}`);
             this.updateAIFeedback(0, true);
         } finally {
             completeBtn.textContent = originalText;
             completeBtn.disabled = false;
+            console.log('[DRAWING] 完成绘画流程结束');
         }
     }
 
@@ -229,22 +242,30 @@ class DrawingApp {
 
     async loadModel() {
         try {
+            console.log('[AI] 开始加载鱼类检测模型...');
             this.model = await tf.loadLayersModel('/model.json');
             this.modelLoaded = true;
-            console.log('Fish detection model loaded successfully');
+            console.log('[AI] 鱼类检测模型加载成功');
         } catch (error) {
-            console.warn('Failed to load fish detection model, using fallback:', error);
+            console.error('[AI] 模型加载失败:', {
+                timestamp: new Date().toISOString(),
+                error: error.message,
+                stack: error.stack,
+                modelPath: '/model.json'
+            });
             this.modelLoaded = false;
+            showToast('AI模型加载失败，将使用备用检测方法');
         }
     }
 
     async detectFish(imageData) {
         if (!this.modelLoaded || !this.model) {
-            // Fallback: simple heuristics for fish detection
+            console.warn('[AI] 模型未加载，使用备用检测方法');
             return this.fallbackFishDetection(imageData);
         }
 
         try {
+            console.log('[AI] 开始鱼类检测...');
             // Create image element from base64
             const img = new Image();
             img.src = imageData;
@@ -268,6 +289,7 @@ class DrawingApp {
             // Make prediction
             const prediction = this.model.predict(tensor);
             const probability = prediction.dataSync()[0];
+            console.log('[AI] 检测完成，鱼类概率:', probability);
 
             // Clean up tensor
             tensor.dispose();
@@ -275,7 +297,13 @@ class DrawingApp {
 
             return probability;
         } catch (error) {
-            console.error('Error in fish detection:', error);
+            console.error('[AI] 鱼类检测出错:', {
+                timestamp: new Date().toISOString(),
+                error: error.message,
+                stack: error.stack,
+                imageSize: imageData.length
+            });
+            showToast('AI检测出错，将使用备用方法');
             return this.fallbackFishDetection(imageData);
         }
     }
@@ -327,25 +355,40 @@ class DrawingApp {
     }
 
     async submitFish(nickname, imageData, probability) {
-        const response = await fetch('/fish', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+        try {
+            console.log('[SERVER] 开始提交鱼类数据...');
+            const response = await fetch('/fish', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    nickname: nickname,
+                    imageBase64: imageData,
+                    prob: probability
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({
+                    error: `HTTP错误 ${response.status} ${response.statusText}`
+                }));
+                throw new Error(errorData.error || '提交失败');
+            }
+
+            const result = await response.json();
+            console.log('[SERVER] 提交成功，服务器响应:', result);
+            return result;
+        } catch (error) {
+            console.error('[SERVER] 提交鱼类数据出错:', {
+                timestamp: new Date().toISOString(),
+                error: error.message,
+                stack: error.stack,
                 nickname: nickname,
-                imageBase64: imageData,
-                prob: probability
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to submit fish');
+                probability: probability
+            });
+            throw error;
         }
-
-        const result = await response.json();
-        return result;
     }
 
     showAIFeedback() {
